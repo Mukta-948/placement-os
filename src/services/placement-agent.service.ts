@@ -3,12 +3,14 @@ import type { AgentResponse, IncomingMessage } from "../types/index.js";
 import { LlmError, type LlmClient } from "../llm/openai-compatible-client.js";
 import type { ConversationMemory } from "./conversation-memory.service.js";
 import type { IntentRouterService } from "./intent-router.service.js";
+import type { ProfileService } from "./profile.service.js";
 
 export class PlacementAgentService {
   constructor(
     private readonly memory: ConversationMemory,
     private readonly llm: LlmClient,
     private readonly router: IntentRouterService,
+    private readonly profiles?: ProfileService,
   ) {}
 
   async respond(message: IncomingMessage): Promise<AgentResponse> {
@@ -18,7 +20,18 @@ export class PlacementAgentService {
       await this.memory.clear(message.conversationId);
       return { text: "Done—your previous coaching context is cleared. What would you like to practice?", shouldClearMemory: true };
     }
+    await this.captureProfile(message);
     return this.router.route(message, (instruction) => this.generateResponse(message, instruction));
+  }
+
+  private async captureProfile(message: IncomingMessage): Promise<void> {
+    if (!this.profiles) return;
+    try {
+      // conversationId is the stable incoming identity exposed by the existing application boundary.
+      await this.profiles.captureFromMessage(message.conversationId, message);
+    } catch {
+      // Profile enrichment must not block a working coaching conversation.
+    }
   }
 
   private async generateResponse(message: IncomingMessage, intentInstruction: string): Promise<AgentResponse> {

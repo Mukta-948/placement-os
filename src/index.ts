@@ -17,6 +17,12 @@ import { ResumeReviewService } from "./services/resume-review.service.js";
 import { RoadmapService } from "./services/roadmap.service.js";
 import { BehavioralService } from "./services/behavioral.service.js";
 import { createLogger } from "./utils/logger.js";
+import path from "node:path";
+import { DeterministicProfileInformationDetector } from "./services/deterministic-profile-information-detector.js";
+import { JsonProfileStorage } from "./services/json-profile-storage.js";
+import { ProfileMerger } from "./services/profile-merger.js";
+import { ProfileService } from "./services/profile.service.js";
+import { StructuredLlmProfileExtractor } from "./services/structured-llm-profile-extractor.js";
 
 async function main(): Promise<void> {
   loadDotEnv();
@@ -24,6 +30,12 @@ async function main(): Promise<void> {
   const logger = createLogger(config.logLevel);
   const memory = new FileConversationMemory(config.memoryFile, config.maxConversationTurns);
   const llm = new OpenAiCompatibleClient(config.llm);
+  const profiles = new ProfileService(
+    new JsonProfileStorage(path.join(path.dirname(config.memoryFile), "profiles.json")),
+    new ProfileMerger(),
+    new StructuredLlmProfileExtractor(llm),
+    new DeterministicProfileInformationDetector(),
+  );
   const router = new IntentRouterService(
     new DeterministicIntentDetector(),
     [
@@ -36,7 +48,7 @@ async function main(): Promise<void> {
       new GeneralCoachService(),
     ],
   );
-  const agent = new PlacementAgentService(memory, llm, router);
+  const agent = new PlacementAgentService(memory, llm, router, profiles);
   const controller = new MessageController(agent, logger);
   const communication = new CaspianCommunicationService(config, controller, logger);
   const app = createApp();
