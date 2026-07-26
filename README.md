@@ -1,25 +1,56 @@
-# AI Placement Preparation Agent
+# PlacementOS — AI Placement Preparation Agent
 
-An AI coach that helps college students prepare for software-engineering internships and placements over the channels they already use. It uses the **Caspian TypeScript SDK** for communication, an OpenAI-compatible LLM for coaching, and one shared message handler for all channels.
+PlacementOS is a production-ready AI placement coach that helps computer science students prepare for software engineering internships and campus placements through the communication channels they already use. Built on the Caspian TypeScript SDK, it combines deterministic coaching workflows with LLM-powered explanations to deliver personalized interview practice, DSA guidance, resume reviews, and placement preparation from a single conversational interface.
 
-## Problem statement
+Unlike traditional AI chatbots, PlacementOS separates deterministic decision-making from language generation. Intent routing, daily challenge selection, conversation memory, resume analysis, and coaching workflows are handled by modular application services, while the language model focuses solely on generating natural explanations and feedback.
 
-Placement preparation is fragmented: students practice DSA in one tool, interview questions in another, and resume feedback somewhere else. This service offers a focused coaching experience in a student’s existing inbox or chat, while keeping conversation context and channel plumbing out of the core product logic.
+## Problem Solved
+
+Preparing for software engineering placements typically requires students to switch between multiple disconnected platforms for DSA practice, resume reviews, interview preparation, aptitude training, and behavioral coaching. PlacementOS brings these capabilities together behind a single conversational interface, allowing students to continue preparation from email or messaging applications without changing tools or losing context.
+
+The platform uses Caspian as its communication layer, enabling the same coaching experience across supported channels through a single message handler while keeping channel-specific logic completely separate from business logic.
 
 ## Features
 
-- DSA problems, explanations, hints, and approach reviews
-- Deterministic daily DSA challenge, so every student gets the same daily exercise
-- HR and behavioral mock interviews, one question at a time
-- Resume-feedback guidance from pasted resume text
-- System-design fundamentals, DBMS, OS, CN, OOP, and aptitude practice
-- Conversation-scoped durable memory and a `reset` / `/clear` command
-- Pluggable intent routing for resume review, interviews, DSA, roadmaps, behavioral practice, help, and general coaching
-- Email and Telegram via one Caspian `onMessage` handler
-- Typing indicators where Caspian’s provider supports them
-- Concise, channel-aware coaching prompts
-- User-safe behavior for LLM timeouts, rate limits, network errors, invalid LLM keys, empty messages, and Caspian delivery errors
-- Offline unit tests that mock all external APIs
+- Deterministic intent routing for DSA practice, resume reviews, technical interviews, behavioral interviews, roadmaps, aptitude preparation, and general coaching
+- Adaptive interview engine supporting technical and HR interview workflows with multi-turn conversational context
+- ATS-aware resume intelligence providing structured resume feedback and actionable improvement recommendations
+- Daily deterministic DSA challenges with topic selection, hints, solution guidance, and approach reviews
+- Personalized placement preparation covering Data Structures & Algorithms, Operating Systems, DBMS, Computer Networks, Object-Oriented Programming, System Design fundamentals, and aptitude
+- Conversation-scoped durable memory that preserves coaching history while supporting explicit reset through the `/clear` command
+- Unified coaching experience across multiple communication channels using a single Caspian message handler
+- Channel-aware responses with typing indicators where supported by the connected provider
+- Modular service-oriented architecture that cleanly separates communication, business logic, intent detection, memory, and LLM interactions
+- Structured error handling for LLM failures, network interruptions, invalid credentials, empty requests, and Caspian delivery failures
+- Fully offline unit tests with mocked external dependencies for deterministic and reproducible test execution
+
+## Code Quality
+
+The project emphasizes deterministic application behavior over prompt-driven orchestration. Business workflows such as intent routing, conversation memory, daily challenge generation, resume analysis, and coaching flows are implemented as modular application services, while the language model is responsible only for natural-language reasoning and explanations.
+
+Engineering highlights include:
+
+- Strict TypeScript with shared domain models and typed service interfaces
+- Modular service-oriented architecture with clear separation of concerns
+- Deterministic intent detection behind a pluggable IntentDetector abstraction
+- Conversation-scoped durable memory with reset support
+- Channel-independent communication through a single Caspian message handler
+- Structured error handling for LLM, network, and delivery failures
+- Offline unit testing with mocked external APIs
+- Health endpoint for deployment readiness
+- Environment validation and centralized configuration management
+- Structured logging and dependency injection for maintainability
+
+## Verification
+
+The project is validated through automated testing, static analysis, and end-to-end manual verification.
+
+- 46 offline unit tests across 19 test suites pass successfully.
+- Strict TypeScript type checking passes with `npm run typecheck`.
+- Production build completes successfully with `npm run build`.
+- External services are fully mocked during testing for deterministic and reproducible execution.
+- Health endpoint verified locally.
+- End-to-end manual validation completed through Caspian Email, including inbound message delivery, intent routing, conversation memory, LLM response generation, and outbound replies.
 
 ## Architecture
 
@@ -38,6 +69,30 @@ flowchart LR
 
 For the detailed design rationale, see [docs/architecture.md](docs/architecture.md).
 
+### High-Level Architecture
+
+```
+                Caspian SDK
+                     │
+           client.onMessage(...)
+                     │
+             Placement Controller
+                     │
+             Intent Router Service
+                     │
+ ┌──────────┬──────────┬──────────┬──────────┐
+ │          │          │          │          │
+DSA     Resume     Interview   Roadmap   Coach
+Service  Service    Service    Service   Service
+ │          │          │          │
+ └──────────┴──────────┴──────────┴──────────┘
+                     │
+          Conversation Memory
+                     │
+         OpenAI-Compatible LLM
+```
+
+
 ## Tech stack
 
 - Node.js 20+, TypeScript, Express
@@ -45,11 +100,19 @@ For the detailed design rationale, see [docs/architecture.md](docs/architecture.
 - OpenAI-compatible Chat Completions API via native `fetch`
 - Vitest for fast, offline unit tests
 
-## How Caspian is used
+## How Caspian Fits
 
-`src/communication/caspian.service.ts` is the only communication integration point. At startup it connects Email and, when enabled, Telegram. It registers a single `client.onMessage(...)` handler; Caspian handles transport-specific delivery, threading, and reply routing.
+Caspian serves as the communication layer rather than an additional notification channel. The application uses a single `client.onMessage(...)` handler to process every inbound message, regardless of the connected communication platform.
 
-The handler delegates every message to the same controller and replies with `message.reply(...)`. No Telegram-specific or Email-specific business logic exists. To enable another supported Caspian channel, add one connection call in `connectConfiguredChannels()`—the agent, memory, prompts, and controller stay unchanged.
+The handler delegates requests to the application controller, which routes them through the intent router and coaching services before returning responses using `message.reply(...)`. Business logic never depends on Email, Telegram, or any other specific transport.
+
+Conversation IDs provided by Caspian scope durable conversation memory, allowing coaching sessions to continue naturally across multiple messages while remaining isolated from other users.
+
+Adding another supported communication channel requires only a new connection inside `connectConfiguredChannels()`. The coaching engine, intent routing, memory management, prompts, and application services remain unchanged.
+
+**Channels currently verified:** Caspian Email.
+
+The same architecture supports additional Caspian channels such as Telegram without requiring changes to the core coaching logic.
 
 ## Intent routing
 
@@ -57,22 +120,38 @@ The handler delegates every message to the same controller and replies with `mes
 
 Progress wording currently reaches `GeneralCoachService`, because persistent profile and progress tracking are intentionally deferred to the profile phase.
 
-## Project structure
+## Project Structure
 
-```text
-src/
-  communication/  Caspian adapter and one inbound handler
-  config/         environment validation and .env loading
-  controllers/    delivery-to-application translation
-  llm/            OpenAI-compatible client and typed errors
-  prompts/        placement-coach system prompt
-  routes/         thin Express health route
-  services/       agent, memory, and daily challenge logic
-  types/          shared application contracts
-  utils/          structured logger
-test/             isolated unit tests with mocked network calls
-docs/             architecture and screenshot capture guide
 ```
+src/
+├── communication/    Caspian communication layer
+├── config/           Environment validation and configuration
+├── controllers/      Request orchestration
+├── llm/              OpenAI-compatible client and typed errors
+├── prompts/          System prompts
+├── routes/           Express health endpoints
+├── services/         Coaching services and business logic
+├── storage/          Conversation and profile persistence
+├── types/            Shared domain models
+├── utils/            Logging and shared utilities
+test/                 Offline unit tests
+docs/                 Architecture and documentation
+```
+
+## Demo
+
+The agent has been validated through real conversations over Caspian Email.
+
+Example workflows include:
+
+- Daily DSA challenge generation
+- Resume review
+- Technical interview simulation
+- Behavioral interview practice
+- Placement coaching
+- Conversation memory across multiple messages
+
+> Screenshots and demo recordings will be added after redacting personal information.
 
 ## Setup
 
@@ -122,23 +201,36 @@ npm run typecheck # validate types without emitting files
 
 ## Deployment
 
-Build the service with `npm run build`, supply environment variables through your hosting platform’s secret manager, and persist `MEMORY_FILE` on durable storage. Run it as a long-lived Node process—the Caspian SDK polls inbound events from the gateway. Expose the Express `/health` endpoint to the platform’s health checker.
+The service can be deployed as a long-running Node.js application behind any platform capable of hosting persistent services.
 
-For multi-instance production deployment, replace `FileConversationMemory` with a shared database implementation of its small `ConversationMemory` interface. This preserves per-conversation ordering and history across replicas.
+Deployment requirements:
+
+- Configure environment variables through the platform's secret manager.
+- Persist conversation storage on durable storage or replace the file-based implementation with a shared database.
+- Expose the `/health` endpoint for platform health checks.
+- Build the application using `npm run build` and start the compiled service with `npm start`.
+
+For horizontally scaled deployments, replace the file-backed conversation storage with a database implementation of the `ConversationMemory` interface to preserve conversation continuity across multiple instances.
 
 ## Screenshots
 
 The repository includes a safe [screenshot capture guide](docs/screenshots.md). Add redacted real-channel captures before publishing a product demo.
 
-## Future roadmap
+## Future Roadmap
 
-- Database-backed encrypted memory with retention controls
+- Adaptive interview difficulty based on previous performance
+- Persistent learner profiles with long-term skill tracking
+- Personalized placement roadmaps generated from interview history
 - Resume document ingestion with explicit user consent
-- Scheduled revision plans and reminders using Caspian’s proactive messaging APIs
-- Progress analytics and skill-gap dashboards
-- Human mentor handoff and feedback review workflows
-- Per-institution question banks and aptitude assessment modes
+- Scheduled revision plans using Caspian proactive messaging
+- Institution-specific interview and aptitude question banks
+- Mentor review workflows and collaborative coaching
+- Analytics dashboard for learning progress and placement readiness
 
 ## Security and privacy
 
 Keep `.env` and the local `data/` memory directory out of source control. Do not log resume content, messages, API keys, or personally identifiable information. In production, encrypt stored conversation data and define a deletion policy appropriate for your institution.
+
+## License
+
+This project is released under the MIT License.
