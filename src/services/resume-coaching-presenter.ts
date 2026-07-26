@@ -1,0 +1,1 @@
+import type{LlmClient}from"../llm/openai-compatible-client.js";export class ResumeCoachingPresenter{constructor(private l:LlmClient){}present(x:unknown){return this.l.complete([{role:"system",content:`Express these fixed ATS results naturally. Do not alter scores, priorities, or evidence: ${JSON.stringify(x)}`}])}}

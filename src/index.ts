@@ -37,6 +37,13 @@ import { LearningProgressService } from "./services/learning-progress.service.js
 import { MasteryPolicy } from "./services/mastery-policy.js";
 import { ProgressUpdater } from "./services/progress-updater.js";
 import { RoadmapEngine } from "./services/roadmap-engine.js";
+import { DeterministicResumeParser } from "./services/deterministic-resume-parser.js";
+import { ATSAnalyzer } from "./services/ats-analyzer.js";
+import { GapAnalyzer } from "./services/gap-analyzer.js";
+import { RecommendationEngine } from "./services/recommendation-engine.js";
+import { JsonResumeProfileStorage } from "./services/json-resume-profile-storage.js";
+import { ResumeCoachingPresenter } from "./services/resume-coaching-presenter.js";
+import { ResumeIntelligenceService } from "./services/resume-intelligence.service.js";
 
 async function main(): Promise<void> {
   loadDotEnv();
@@ -56,11 +63,12 @@ async function main(): Promise<void> {
   );
   const interviewSessions = new InterviewSessionService(new JsonInterviewSessionStorage(path.join(path.dirname(config.memoryFile), "interview-sessions.json")));
   const learningProgress = new LearningProgressService(new JsonLearningProgressStorage(path.join(path.dirname(config.memoryFile), "learning-progress.json")), new ProgressUpdater(new MasteryPolicy()));
+  const resumeIntelligence = new ResumeIntelligenceService(new DeterministicResumeParser(),new ATSAnalyzer(),new GapAnalyzer(),new RecommendationEngine(),new JsonResumeProfileStorage(path.join(path.dirname(config.memoryFile),"resume-profiles.json")),learningProgress,new ResumeCoachingPresenter(llm));
   const interviews = new InterviewOrchestrator(interviewSessions, new LlmQuestionGenerator(llm), new LlmAnswerEvaluator(llm), new AdaptiveDifficultyPolicy(), learningProgress);
   const router = new IntentRouterService(
     new DeterministicIntentDetector(),
     [
-      new ResumeReviewService(),
+      new ResumeReviewService(resumeIntelligence),
       new InterviewService(interviews),
       new DsaService(new DailyDsaService()),
       new RoadmapService(learningProgress, new RoadmapEngine(llm), interviewSessions),
