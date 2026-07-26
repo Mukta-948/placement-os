@@ -4,6 +4,7 @@ import type { IntentHandler, IntentHandlerContext } from "./intent-handler.js";
 
 export class DsaService implements IntentHandler {
   readonly intents: readonly Intent[] = ["dsa"];
+  readonly serviceName = "dsa";
   constructor(private readonly dailyDsa: DailyDsaService) {}
 
   async handle(context: IntentHandlerContext): Promise<AgentResponse> {

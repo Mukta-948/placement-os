@@ -23,6 +23,9 @@ import { JsonProfileStorage } from "./services/json-profile-storage.js";
 import { ProfileMerger } from "./services/profile-merger.js";
 import { ProfileService } from "./services/profile.service.js";
 import { StructuredLlmProfileExtractor } from "./services/structured-llm-profile-extractor.js";
+import { ConversationContextService } from "./services/conversation-context.service.js";
+import { ConversationStateManager } from "./services/conversation-state-manager.js";
+import { JsonContextStorage } from "./services/json-context-storage.js";
 
 async function main(): Promise<void> {
   loadDotEnv();
@@ -36,6 +39,10 @@ async function main(): Promise<void> {
     new StructuredLlmProfileExtractor(llm),
     new DeterministicProfileInformationDetector(),
   );
+  const contexts = new ConversationContextService(
+    new JsonContextStorage(path.join(path.dirname(config.memoryFile), "contexts.json")),
+    new ConversationStateManager(),
+  );
   const router = new IntentRouterService(
     new DeterministicIntentDetector(),
     [
@@ -48,7 +55,7 @@ async function main(): Promise<void> {
       new GeneralCoachService(),
     ],
   );
-  const agent = new PlacementAgentService(memory, llm, router, profiles);
+  const agent = new PlacementAgentService(memory, llm, router, profiles, contexts);
   const controller = new MessageController(agent, logger);
   const communication = new CaspianCommunicationService(config, controller, logger);
   const app = createApp();

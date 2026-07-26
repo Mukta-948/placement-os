@@ -1,6 +1,19 @@
 import type { AgentResponse, IncomingMessage, Intent } from "../types/index.js";
 import type { IntentDetector } from "./intent-detector.js";
 import type { IntentHandler, IntentHandlerContext } from "./intent-handler.js";
+import type { ConversationContext } from "../types/conversation-context.js";
+import type { UserProfile } from "../types/profile.js";
+
+export interface CoachingState {
+  readonly profile: UserProfile;
+  readonly conversationContext: ConversationContext;
+}
+
+export interface RoutedResponse {
+  readonly response: AgentResponse;
+  readonly intent: Intent;
+  readonly serviceName: string;
+}
 
 export class IntentRouterService {
   private readonly handlers = new Map<Intent, IntentHandler>();
@@ -17,11 +30,12 @@ export class IntentRouterService {
 
   async route(
     message: IncomingMessage,
+    coachingState: CoachingState,
     generate: (instruction: string) => Promise<AgentResponse>,
-  ): Promise<AgentResponse> {
+  ): Promise<RoutedResponse> {
     const intent = this.detector.detect(message);
     const handler = this.handlers.get(intent) ?? this.handlers.get("unknown")!;
-    const context: IntentHandlerContext = { message, intent, generate };
-    return handler.handle(context);
+    const context: IntentHandlerContext = { message, intent, ...coachingState, generate };
+    return { response: await handler.handle(context), intent, serviceName: handler.serviceName };
   }
 }

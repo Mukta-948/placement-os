@@ -11,11 +11,12 @@ export function buildPrompt(
   channel: string,
   studentName: string,
   intentInstruction = "",
+  coachingState = "",
 ): LlmMessage[] {
   return [
     {
       role: "system",
-      content: `${PLACEMENT_SYSTEM_PROMPT}\n\nCurrent channel: ${channel}. Student name: ${studentName}.${intentInstruction ? `\n\nCurrent task: ${intentInstruction}` : ""}`,
+      content: `${PLACEMENT_SYSTEM_PROMPT}\n\nCurrent channel: ${channel}. Student name: ${studentName}.${intentInstruction ? `\n\nCurrent task: ${intentInstruction}` : ""}${coachingState ? `\n\nRelevant coaching context: ${coachingState}` : ""}`,
     },
     ...history,
   ];
