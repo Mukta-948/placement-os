@@ -1,8 +1,10 @@
-import type { Intent } from "../types/index.js";
-import { PromptedIntentService } from "./prompted-intent.service.js";
+import type { AgentResponse, Intent } from "../types/index.js";
+import type { IntentHandler, IntentHandlerContext } from "./intent-handler.js";
+import { InterviewOrchestrator } from "./interview-orchestrator.js";
 
-export class InterviewService extends PromptedIntentService {
+export class InterviewService implements IntentHandler {
   readonly intents: readonly Intent[] = ["interview"];
   readonly serviceName = "interview";
-  protected readonly instruction = "Run a realistic placement interview. Ask exactly one question at a time, wait for the student's answer, then assess it and ask a relevant follow-up.";
+  constructor(private readonly interviews: InterviewOrchestrator) {}
+  async handle(context: IntentHandlerContext): Promise<AgentResponse> { return { text: await this.interviews.handle(context.conversationContext.contextId, context.message.text ?? "", context.profile, context.conversationContext) }; }
 }

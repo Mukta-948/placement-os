@@ -26,6 +26,12 @@ import { StructuredLlmProfileExtractor } from "./services/structured-llm-profile
 import { ConversationContextService } from "./services/conversation-context.service.js";
 import { ConversationStateManager } from "./services/conversation-state-manager.js";
 import { JsonContextStorage } from "./services/json-context-storage.js";
+import { JsonInterviewSessionStorage } from "./services/json-interview-session-storage.js";
+import { InterviewSessionService } from "./services/interview-session.service.js";
+import { InterviewOrchestrator } from "./services/interview-orchestrator.js";
+import { LlmQuestionGenerator } from "./services/llm-question-generator.js";
+import { LlmAnswerEvaluator } from "./services/llm-answer-evaluator.js";
+import { AdaptiveDifficultyPolicy } from "./services/adaptive-difficulty-policy.js";
 
 async function main(): Promise<void> {
   loadDotEnv();
@@ -43,17 +49,20 @@ async function main(): Promise<void> {
     new JsonContextStorage(path.join(path.dirname(config.memoryFile), "contexts.json")),
     new ConversationStateManager(),
   );
+  const interviewSessions = new InterviewSessionService(new JsonInterviewSessionStorage(path.join(path.dirname(config.memoryFile), "interview-sessions.json")));
+  const interviews = new InterviewOrchestrator(interviewSessions, new LlmQuestionGenerator(llm), new LlmAnswerEvaluator(llm), new AdaptiveDifficultyPolicy());
   const router = new IntentRouterService(
     new DeterministicIntentDetector(),
     [
       new ResumeReviewService(),
-      new InterviewService(),
+      new InterviewService(interviews),
       new DsaService(new DailyDsaService()),
       new RoadmapService(),
       new BehavioralService(),
       new HelpService(),
       new GeneralCoachService(),
     ],
+    interviewSessions,
   );
   const agent = new PlacementAgentService(memory, llm, router, profiles, contexts);
   const controller = new MessageController(agent, logger);
