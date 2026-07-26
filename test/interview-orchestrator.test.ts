@@ -14,6 +14,7 @@ class MemoryStorage implements InterviewSessionStorage {
   async load(id: string) { return this.values.get(id) ?? null; }
   async save(session: InterviewSession) { this.values.set(session.id, structuredClone(session)); }
   async findActiveByOwner(ownerId: string) { return [...this.values.values()].find((s) => s.ownerId === ownerId && s.status === "active") ?? null; }
+  async listByOwner(ownerId: string) { return [...this.values.values()].filter((s) => s.ownerId === ownerId); }
 }
 const profile: UserProfile = { schemaVersion: 1, userId: "u", preferredDifficulty: "medium", targetCompanies: [], skills: [], learningGoals: [], preferredTopics: [], strongTopics: [], weakTopics: [], createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" };
 const context: ConversationContext = { schemaVersion: 1, contextId: "email:u", lastInteractionAt: "2026-01-01T00:00:00.000Z", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" };

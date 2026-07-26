@@ -1,0 +1,5 @@
+import type { MasterySignal, TopicMastery } from "../types/learning-progress.js";
+export class MasteryPolicy {
+  apply(current: TopicMastery | undefined, signal: MasterySignal): TopicMastery { const prior = current?.mastery ?? 50; const confidenceWeight = signal.confidence === "high" ? 1 : signal.confidence === "medium" ? 0.7 : 0.4; const delta = (signal.score - 3) * 8 * confidenceWeight; return { mastery: Math.max(0, Math.min(100, Math.round(prior + delta))), confidence: Math.max(0, Math.min(100, Math.round((current?.confidence ?? 30) + 10 * confidenceWeight))), evidenceCount: (current?.evidenceCount ?? 0) + 1, latestSignalScore: signal.score, lastPracticedAt: signal.occurredAt, updatedAt: signal.occurredAt }; }
+  decay(topic: TopicMastery, now: string): TopicMastery { const days = Math.floor((new Date(now).getTime() - new Date(topic.lastPracticedAt).getTime()) / 86_400_000); if (days < 14) return topic; const decrease = Math.min(12, Math.floor(days / 14) * 2); return { ...topic, mastery: Math.max(0, topic.mastery - decrease), confidence: Math.max(0, topic.confidence - decrease), updatedAt: now }; }
+}

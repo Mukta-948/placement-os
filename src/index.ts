@@ -32,6 +32,11 @@ import { InterviewOrchestrator } from "./services/interview-orchestrator.js";
 import { LlmQuestionGenerator } from "./services/llm-question-generator.js";
 import { LlmAnswerEvaluator } from "./services/llm-answer-evaluator.js";
 import { AdaptiveDifficultyPolicy } from "./services/adaptive-difficulty-policy.js";
+import { JsonLearningProgressStorage } from "./services/json-learning-progress-storage.js";
+import { LearningProgressService } from "./services/learning-progress.service.js";
+import { MasteryPolicy } from "./services/mastery-policy.js";
+import { ProgressUpdater } from "./services/progress-updater.js";
+import { RoadmapEngine } from "./services/roadmap-engine.js";
 
 async function main(): Promise<void> {
   loadDotEnv();
@@ -50,14 +55,15 @@ async function main(): Promise<void> {
     new ConversationStateManager(),
   );
   const interviewSessions = new InterviewSessionService(new JsonInterviewSessionStorage(path.join(path.dirname(config.memoryFile), "interview-sessions.json")));
-  const interviews = new InterviewOrchestrator(interviewSessions, new LlmQuestionGenerator(llm), new LlmAnswerEvaluator(llm), new AdaptiveDifficultyPolicy());
+  const learningProgress = new LearningProgressService(new JsonLearningProgressStorage(path.join(path.dirname(config.memoryFile), "learning-progress.json")), new ProgressUpdater(new MasteryPolicy()));
+  const interviews = new InterviewOrchestrator(interviewSessions, new LlmQuestionGenerator(llm), new LlmAnswerEvaluator(llm), new AdaptiveDifficultyPolicy(), learningProgress);
   const router = new IntentRouterService(
     new DeterministicIntentDetector(),
     [
       new ResumeReviewService(),
       new InterviewService(interviews),
       new DsaService(new DailyDsaService()),
-      new RoadmapService(),
+      new RoadmapService(learningProgress, new RoadmapEngine(llm), interviewSessions),
       new BehavioralService(),
       new HelpService(),
       new GeneralCoachService(),

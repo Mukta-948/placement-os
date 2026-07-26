@@ -8,6 +8,7 @@ class Storage implements InterviewSessionStorage {
   async load() { return this.value; }
   async save(session: InterviewSession) { this.value = session; }
   async findActiveByOwner(ownerId: string) { return this.value?.ownerId === ownerId && this.value.status === "active" ? this.value : null; }
+  async listByOwner(ownerId: string) { return this.value?.ownerId === ownerId ? [this.value] : []; }
 }
 
 describe("InterviewSessionService", () => {
