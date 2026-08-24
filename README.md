@@ -151,7 +151,7 @@ Example workflows include:
 - Placement coaching
 - Conversation memory across multiple messages
 
-> Screenshots and demo recordings will be added after redacting personal information.
+
 
 ## Setup
 
